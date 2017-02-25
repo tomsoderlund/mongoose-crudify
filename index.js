@@ -11,14 +11,16 @@ function crudify(params){
    * extract values from params object
    */
   let Model = params.Model
-  let identifyingKey = params.identifyingKey || 'id'
+  let identifyingKey = params.identifyingKey || '_id'
+  let selectFields = params.selectFields
   let loadModel = params.loadModel || true
   let beforeActions = params.beforeActions || []
   let afterActions = params.afterActions || []
 
   params.actions = params.actions || {}
   let actions = 
-    _.defaults(params.actions, crudify.getDefaultActions(Model,identifyingKey))
+    _.defaults(params.actions,
+               crudify.getDefaultActions(Model, identifyingKey, selectFields))
 
   params.options = params.options || {}
   let options = _.defaults(params.options,{
@@ -39,30 +41,16 @@ function crudify(params){
     hooks['before'][actionName] = []
     hooks['after'][actionName] = []
   })
-
-  // load modle on update and read actions
+  // load model on update and read actions
   if(loadModel)
     beforeActions.unshift({
       middlewares: [
-        function(req, res, next){
-          Model.findOne({_id: req.params[identifyingKey]}, function(err, doc) {
-            if (err) return res.status(500).json(err)
-            if (doc){
-              req.crudify = {
-                [Model.modelName.toLowerCase()]: doc
-              }
-              next()
-            }else{
-              return res.sendStatus(404)
-            }
-          })
-        }
+        _loadModel
       ],
       only: ['read', 'update']
     })
-
-  _addHooks('before',beforeActions,actionNames)
-  _addHooks('after',afterActions,actionNames)
+  _addHooks('before',beforeActions)
+  _addHooks('after',afterActions)
 
   let router = express.Router(options)
 
@@ -81,8 +69,8 @@ function crudify(params){
   return router
 
   function _addHooks(type, hookActions){
-    let actionsNeedHook = actionNames
     hookActions.forEach( hook => {
+      let actionsNeedHook = actionNames
       if(hook.only){
         actionsNeedHook = hook.only
       }else if(hook.except){
@@ -93,6 +81,26 @@ function crudify(params){
         hooks[type][actionName] =
           hooks[type][actionName].concat(hook.middlewares)
       })
+    })
+  }
+  function _loadModel(req, res, next){
+    let condition = {}
+    condition[identifyingKey] = req.params[identifyingKey]
+
+    let query = Model.findOne(condition)
+    if(selectFields)
+      query.select(selectFields)
+
+    query.exec((err, doc) => {
+      if (err) return res.status(500).json(err)
+      if (doc){
+        req.crudify = {
+          [Model.modelName.toLowerCase()]: doc
+        }
+        next()
+      }else{
+        return res.sendStatus(404)
+      }
     })
   }
 }
@@ -120,12 +128,17 @@ crudify.actionsNeedParam = ['read', 'update','delete']
  * @param  {[type]} Model [description]
  * @return {[type]}       [description]
  */
-crudify.getDefaultActions = (Model, identifyingKey) => {
+crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
   let modelName = Model.modelName.toLowerCase()
+
   return { 
     /** GET / - List all entities */
     list({ params }, res) {
-      Model.find(params, (err, docs)=> {
+      let query = Model.find(params)
+      if(selectFields)
+        query.select(selectFields)
+
+      query.exec((err, docs)=> {
         if(err)
           return res.json(err)
         res.json(docs)
@@ -167,7 +180,10 @@ crudify.getDefaultActions = (Model, identifyingKey) => {
 
     /** DELETE /:id - Delete a given entity */
     delete({ params }, res) {
-      Model.remove({_id: params[identifyingKey]}, function(err){
+      let condition = {}
+      condition[identifyingKey] = params[identifyingKey]
+
+      Model.remove(condition, function(err){
         if(err){
           return res.json(err)
         }

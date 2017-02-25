@@ -30,13 +30,16 @@ app.use('/articles', mongooseCrudify({
 var mongooseCrudify = require('mongoose-crudify')
 var Article = require('../app/models/article')
 
+
 app.use('/articles', mongooseCrudify({
     Model: Article, // mongoose model
-    identifyingKey: 'id', // route param name, defaults to 'id'
+    identifyingKey: '_id', // route param name, defaults to '_id'
+    selectFields: 'pub1 pub2 -secret', // http://mongoosejs.com/docs/api.html#query_Query-select
+
     // load model on update and read actions, defaults to true
     // store the found model instance in req, eg: req.crudify.article
     // if changed to false, you must override the update and read middlewares
-    loadModel: true, 
+    loadModel: true,
     beforeActions: [
       {
         middlewares: [ensureLogin],
@@ -46,7 +49,7 @@ app.use('/articles', mongooseCrudify({
     actions: {
         // default actions: list, create, read, update, delete
         // any non-overridden action will be in functional
-        
+
         //override update
         update: function (req, res, next) {}
     },
@@ -60,7 +63,7 @@ app.use('/articles', mongooseCrudify({
         only: ['update']
       }
     ],
-    options: { 
+    options: {
         // https://expressjs.com/en/api.html#express.router
         // all default to false
         caseSensitive: false,
