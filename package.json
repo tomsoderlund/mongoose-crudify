@@ -1,18 +1,25 @@
 {
   "name": "mongoose-crudify",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Crudify mongoose model",
   "main": "index.js",
   "scripts": {
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository" : { 
-    "type" : "git",
-    "url" : "https://github.com/ryo718/mongoose-crudify.git"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryo718/mongoose-crudify.git"
   },
   "author": "ryo718",
   "license": "MIT",
   "dependencies": {
     "lodash": "^4.17.4"
+  },
+  "devDependencies": {
+    "dotenv": "^4.0.0",
+    "express": "^4.14.1",
+    "mongoose": "^4.8.4",
+    "nodemon": "^1.11.0"
   }
 }

@@ -45,7 +45,7 @@ function crudify(params){
     beforeActions.unshift({
       middlewares: [
         function(req, res, next){
-          Model.findOne({_id: req.params.id}, function(err, doc) {
+          Model.findOne({_id: req.params[identifyingKey]}, function(err, doc) {
             if (err) return res.status(500).json(err)
             if (doc){
               req.crudify = {
