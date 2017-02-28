@@ -2,9 +2,9 @@ const express = require('express')
 const logger = require('morgan')
 const bodyParser = require('body-parser')
 
-
-//process.env now has the keys and values you defined in your .env file.
+// process.env now has the keys and values you defined in your .env file.
 require('dotenv').config()
+
 const app = express()
 app.use(logger('dev'))
 app.use(bodyParser.json())
@@ -16,7 +16,7 @@ app.get('/', function (req, res) {
 })
 
 app.listen(process.env.PORT, function () {
-  console.log('Example app listening on port 3000!')
+  console.log('Example app listening on port ' + process.env.PORT)
 })
 
 module.exports = app
