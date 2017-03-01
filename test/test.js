@@ -1,5 +1,6 @@
 /* global describe, it */
 const expect = require('chai').expect
+const express = require('express')
 const mongooseCrudify = require('../')
 const errors = require('../lib/errors')
 const mongoose = require('mongoose')
@@ -24,21 +25,36 @@ describe('mongooseCrudify', function () {
     expect(mongooseCrudify.exposure.hooks).to.exist
     expect(mongooseCrudify.exposure.actionNames).to.exist
   })
-  it('should expose router', function () {
+  it('should return router', function () {
     let router = mongooseCrudify({
       Model: Article
     })
     expect(router.stack).to.have.lengthOf(5)
   })
-
+  it('should return exsisting router when provided', function () {
+    let router = express.Router()
+    let returnedRouter = mongooseCrudify({
+      Model: Article,
+      router
+    })
+    expect(returnedRouter).to.equal(router)
+  })
+  it('should have non-overidden default actions', function () {
+    mongooseCrudify({
+      Model: Article,
+      actions: {
+        update () {}
+      }
+    })
+    expect(mongooseCrudify.exposure.actionNames)
+      .to.include('list', 'create', 'read', 'update', 'delete')
+  })
   describe('static #getDefaultActions', function () {
     it('should return object containing default actions', function () {
-      let obj = mongooseCrudify.getDefaultActions(Article)
-      expect(obj.list).to.exist
-      expect(obj.create).to.exist
-      expect(obj.read).to.exist
-      expect(obj.update).to.exist
-      expect(obj.delete).to.exist
+      let actionKeys = Object.keys(
+        mongooseCrudify.getDefaultActions(Article))
+      expect(actionKeys).to
+        .include('list', 'create', 'read', 'update', 'delete')
     })
   })
 

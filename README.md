@@ -1,5 +1,5 @@
-mongoose-crudify
-============
+# mongoose-crudify
+
 Generates crud routes for mongoose model
 
 ## Install
@@ -14,11 +14,11 @@ var Article = require('../app/models/article')
 
 /**
  * By default, following routes are generated
- *  list - GET /articles/
- *  create- POST /articles/
- *  read - GET /articles/{id}/
- *  update- PUT /articles/{id}/
- *  delete- DELETE /articles/{id}/
+ *  list    - GET /articles/
+ *  create  - POST /articles/
+ *  read    - GET /articles/{id}/
+ *  update  - PUT /articles/{id}/
+ *  delete  - DELETE /articles/{id}/
  */
 app.use('/articles', mongooseCrudify({
     Model: Article
@@ -30,11 +30,13 @@ app.use('/articles', mongooseCrudify({
 var mongooseCrudify = require('mongoose-crudify')
 var Article = require('../app/models/article')
 
-
 app.use('/articles', mongooseCrudify({
-    Model: Article, // mongoose model
+    Model: Article, // mongoose model, required
     identifyingKey: '_id', // route param name, defaults to '_id'
     selectFields: 'pub1 pub2 -secret', // http://mongoosejs.com/docs/api.html#query_Query-select
+
+    // reuse your existing express.Router() object
+    router: existingRouter
 
     // load model on update and read actions, defaults to true
     // store the found model instance in req, eg: req.crudify.article
@@ -65,6 +67,7 @@ app.use('/articles', mongooseCrudify({
     ],
     options: {
         // https://expressjs.com/en/api.html#express.router
+        // if no existing router passed in, new one will be created with these options
         // all default to false
         caseSensitive: false,
         mergeParams: false,

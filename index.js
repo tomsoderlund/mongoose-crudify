@@ -39,7 +39,9 @@ function crudify (params) {
   if (params.loadModel) {
     params.beforeActions.unshift({
       middlewares: [
-        _loadModel
+        crudify.getLoadModel(params.Model,
+                             params.identifyingKey,
+                             params.selectFields)
       ],
       only: ['read', 'update']
     })
@@ -47,7 +49,7 @@ function crudify (params) {
   helpers.addHooks(hooks, 'before', params.beforeActions, actionNames)
   helpers.addHooks(hooks, 'after', params.afterActions, actionNames)
 
-  const router = express.Router(params.options)
+  const router = params.router || express.Router(params.options)
 
   for (let action in params.actions) {
     let httpMethod = crudify.actionsMapping[action] || action
@@ -70,28 +72,6 @@ function crudify (params) {
   }
 
   return router
-
-  function _loadModel (req, res, next) {
-    let condition = {}
-    condition[params.identifyingKey] = req.params[params.identifyingKey]
-
-    let query = params.Model.findOne(condition)
-    if (params.selectFields) {
-      query.select(params.selectFields)
-    }
-
-    query.exec((err, doc) => {
-      if (err) return res.status(500).json(err)
-      if (doc) {
-        req.crudify = {
-          [params.Model.modelName.toLowerCase()]: doc
-        }
-        next()
-      } else {
-        return res.sendStatus(404)
-      }
-    })
-  }
 }
 
 crudify.actionsMapping = {
@@ -104,12 +84,36 @@ crudify.actionsMapping = {
 
 crudify.actionsNeedParam = ['read', 'update', 'delete']
 
+crudify.getLoadModel = function (Model, identifyingKey, selectFields) {
+  return function _loadModel (req, res, next) {
+    let condition = {}
+    condition[identifyingKey] = req.params[identifyingKey]
+
+    let query = Model.findOne(condition)
+    if (selectFields) {
+      query.select(selectFields)
+    }
+
+    query.exec((err, doc) => {
+      if (err) return res.status(500).json(err)
+      if (doc) {
+        req.crudify = {
+          [Model.modelName.toLowerCase()]: doc
+        }
+        next()
+      } else {
+        return res.sendStatus(404)
+      }
+    })
+  }
+}
+
 crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
   let modelName = Model.modelName.toLowerCase()
 
   return {
     /** GET / - List all entities */
-    list ({ params }, res) {
+    list: ({ params }, res) => {
       let query = Model.find(params)
       if (selectFields) {
         query.select(selectFields)
@@ -124,7 +128,7 @@ crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
     },
 
     /** POST / - Create a new entity */
-    create ({ body }, res) {
+    create: ({ body }, res) => {
       var newDoc = new Model()
       Object.assign(newDoc, body)
       newDoc.save(function (err) {
@@ -136,12 +140,12 @@ crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
     },
 
     /** GET /:id - Return a given entity */
-    read ({crudify}, res) {
+    read: ({crudify}, res) => {
       res.json(crudify[modelName])
     },
 
     /** PUT /:id - Update a given entity */
-    update ({ crudify, body }, res) {
+    update: ({ crudify, body }, res) => {
       for (let key in body) {
         if (key !== '_id') {
           crudify[modelName][key] = body[key]
@@ -157,7 +161,7 @@ crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
     },
 
     /** DELETE /:id - Delete a given entity */
-    delete ({ params }, res) {
+    delete: ({ params }, res) => {
       let condition = {}
       condition[identifyingKey] = params[identifyingKey]
 
