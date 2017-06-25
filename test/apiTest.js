@@ -9,6 +9,7 @@ const Article = require('./helpers/models/article')
 chai.use(chaiHttp)
 
 describe('generated api', function () {
+  let id = null
   before(function (done) {
     Article.remove({}, (err) => {
       if (err) throw err
@@ -40,14 +41,46 @@ describe('generated api', function () {
         done()
       })
   })
+  it('should call beforeActions', function (done) {
+    chai.request(app)
+      .post('/articles')
+      .send({ title: 'title1' })
+      .end(function (err, res) {
+        expect(err).to.exist
+        expect(res).to.have.status(401)
+        done()
+      })
+  })
   it('should create 1 article and return the doc', function (done) {
     chai.request(app)
       .post('/articles')
+      .set('X-USERNAME', 'ryo')
       .send({ title: 'title1' })
       .end(function (err, res) {
         expect(err).to.be.null
         expect(res).to.have.status(200)
         expect(res.body._id).to.exist
+        id = res.body._id
+        done()
+      })
+  })
+  it('should get article with that id', function (done) {
+    chai.request(app)
+      .get('/articles/' + id)
+      .end(function (err, res) {
+        expect(err).to.be.null
+        expect(res).to.have.status(200)
+        expect(res.body.likes).to.equal(0)
+        done()
+      })
+  })
+  it('should call afterActions', function (done) {
+    chai.request(app)
+      .get('/articles/' + id)
+      .end(function (err, res) {
+        expect(err).to.be.null
+        expect(res).to.have.status(200)
+        expect(res.body.likes).to.equal(1)
         done()
       })
   })
@@ -67,6 +100,7 @@ describe('generated api', function () {
       if (err) throw err
       chai.request(app)
         .put('/articles/' + doc._id)
+        .set('X-USERNAME', 'ryo')
         .send({ title: 'changed' })
         .end(function (err, res) {
           expect(err).to.be.null
@@ -81,6 +115,7 @@ describe('generated api', function () {
       if (err) throw err
       chai.request(app)
         .delete('/articles/' + doc._id)
+        .set('X-USERNAME', 'ryo')
         .end(function (err, res) {
           expect(err).to.be.null
           expect(res).to.have.status(204)

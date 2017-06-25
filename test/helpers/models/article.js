@@ -6,7 +6,11 @@ const articleSchema = mongoose.Schema({
     required: true
   },
   content: String,
-  secret: String
+  secret: String,
+  likes: {
+    type: Number,
+    default: 0
+  }
 })
 
 module.exports = mongoose.model('Article', articleSchema)
