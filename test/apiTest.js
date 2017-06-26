@@ -34,7 +34,6 @@ function ensureLogin (req, res, next) {
   }
   next()
 }
-
 function updateViewCount (req, res) {
   let article = req.crudify.article
   article.likes++

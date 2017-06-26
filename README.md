@@ -21,7 +21,13 @@ var Article = require('../app/models/article')
  *  delete  - DELETE /articles/{id}/
  */
 app.use('/articles', mongooseCrudify({
-  Model: Article
+  Model: Article,
+  beforeActions: [
+    {
+      middlewares: [ensureLogin],
+      except: ['list', 'read']
+    }
+  ],
 }))
 ```
 
@@ -48,20 +54,34 @@ app.use('/articles', mongooseCrudify({
       except: ['list', 'read']
     }
   ],
-  actions: {
-    // default actions: list, create, read, update, delete
-    // any non-overridden action will be in functional
-
-    // override read so to call next()...
-    read: ({crudify}, res, next) => {
-      res.json(crudify.article)
-      next()
-    }
-  },
   afterActions: [
     {
       middlewares: [updateViewCount],
       only: ['read']
+    }
+  ],
+
+  // change to false so that you can modify and end response in after actions
+  endResponseInAction: true,
+  actions: {
+    // default actions: list, create, read, update, delete
+    // any non-overridden action will be in functional
+    // store query result or err in req.crudify
+    // auto calling next() if after actions defined for this action
+
+    // override read
+    read: ({crudify}, res) => {
+      res.json(crudify.article)
+    }
+  },
+  afterActions: [
+    {
+      middlewares: [updateViewCount, modifyQueryResult],
+      only: ['read']
+    },
+    {
+      middlewares: [generalResponder],
+      except: ['read']
     }
   ],
   options: {
@@ -79,10 +99,17 @@ function ensureLogin (req, res, next) {
   }
   next()
 }
-
 function updateViewCount (req, res) {
-  let article = req.crudify.article
+  let article = req.crudify.article // or req.crudify.result
   article.likes++
   article.save()
+}
+function modifyQueryResult (req, res) {
+  let article = req.crudify.result
+  article.title = 'new title'
+  res.json(article)
+}
+function generalResponder(req, res){
+  res.json(req.crudify.err || req.crudify.result)
 }
 ```
