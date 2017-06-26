@@ -2,14 +2,49 @@
 const chai = require('chai')
 const expect = chai.expect
 const chaiHttp = require('chai-http')
+const crudify = require('../')
 const app = require('./helpers/app')
 const mongoose = require('mongoose')
 const Article = require('./helpers/models/article')
 
 chai.use(chaiHttp)
 
+app.use('/articles', crudify({
+  Model: Article,
+  identifyingKey: 'oldId',
+  beforeActions: [
+    {
+      middlewares: [ensureLogin],
+      except: ['list', 'read']
+    }
+  ],
+  afterActions: [
+    {
+      middlewares: [updateViewCount],
+      only: ['read']
+    }
+  ]
+}))
+app.listen(process.env.PORT, function () {
+  console.log('Example app listening on port ' + process.env.PORT)
+})
+function ensureLogin (req, res, next) {
+  if (req.get('X-USERNAME') !== 'ryo') {
+    return res.sendStatus(401)
+  }
+  next()
+}
+
+function updateViewCount (req, res) {
+  let article = req.crudify.article
+  article.likes++
+  article.save()
+}
+
 describe('generated api', function () {
-  let id = null
+  let id = {
+    identifyingKey: crudify.exposure.params.identifyingKey
+  }
   before(function (done) {
     Article.remove({}, (err) => {
       if (err) throw err
@@ -44,7 +79,7 @@ describe('generated api', function () {
   it('should call beforeActions', function (done) {
     chai.request(app)
       .post('/articles')
-      .send({ title: 'title1' })
+      .send({ oldId: 1, title: 'title1' })
       .end(function (err, res) {
         expect(err).to.exist
         expect(res).to.have.status(401)
@@ -55,18 +90,18 @@ describe('generated api', function () {
     chai.request(app)
       .post('/articles')
       .set('X-USERNAME', 'ryo')
-      .send({ title: 'title1' })
+      .send({ oldId: 1, title: 'title1' })
       .end(function (err, res) {
         expect(err).to.be.null
         expect(res).to.have.status(200)
         expect(res.body._id).to.exist
-        id = res.body._id
+        id.value = res.body[id.identifyingKey]
         done()
       })
   })
   it('should get article with that id', function (done) {
     chai.request(app)
-      .get('/articles/' + id)
+      .get('/articles/' + id.value)
       .end(function (err, res) {
         expect(err).to.be.null
         expect(res).to.have.status(200)
@@ -76,7 +111,7 @@ describe('generated api', function () {
   })
   it('should call afterActions', function (done) {
     chai.request(app)
-      .get('/articles/' + id)
+      .get('/articles/' + id.value)
       .end(function (err, res) {
         expect(err).to.be.null
         expect(res).to.have.status(200)
@@ -99,7 +134,7 @@ describe('generated api', function () {
     Article.findOne({}, (err, doc) => {
       if (err) throw err
       chai.request(app)
-        .put('/articles/' + doc._id)
+        .put('/articles/' + doc[id.identifyingKey])
         .set('X-USERNAME', 'ryo')
         .send({ title: 'changed' })
         .end(function (err, res) {
@@ -114,7 +149,7 @@ describe('generated api', function () {
     Article.findOne({}, (err, doc) => {
       if (err) throw err
       chai.request(app)
-        .delete('/articles/' + doc._id)
+        .delete('/articles/' + doc[id.identifyingKey])
         .set('X-USERNAME', 'ryo')
         .end(function (err, res) {
           expect(err).to.be.null

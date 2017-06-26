@@ -4,19 +4,13 @@ let Article = require('../models/article')
 module.exports = function (app) {
   app.use('/articles', crudify({
     Model: Article,
+    identifyingKey: 'oldId',
     beforeActions: [
       {
         middlewares: [ensureLogin],
         except: ['list', 'read']
       }
     ],
-    actions: {
-      // override so to call next()...
-      read: ({crudify}, res, next) => {
-        res.json(crudify.article)
-        next()
-      }
-    },
     afterActions: [
       {
         middlewares: [updateViewCount],

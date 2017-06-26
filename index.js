@@ -110,10 +110,9 @@ crudify.getLoadModel = function (Model, identifyingKey, selectFields) {
 
 crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
   let modelName = Model.modelName.toLowerCase()
-
   return {
     /** GET / - List all entities */
-    list: ({ params }, res) => {
+    list: ({ params }, res, next) => {
       let query = Model.find(params)
       if (selectFields) {
         query.select(selectFields)
@@ -125,11 +124,14 @@ crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
         }
         res.json(docs)
       })
+      if (crudify.exposure.hooks['after']['list'].length > 0) {
+        next()
+      }
     },
 
     /** POST / - Create a new entity */
-    create: ({ body }, res) => {
-      var newDoc = new Model()
+    create: ({ body }, res, next) => {
+      let newDoc = new Model()
       Object.assign(newDoc, body)
       newDoc.save(function (err) {
         if (err) {
@@ -137,31 +139,43 @@ crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
         }
         res.json(newDoc)
       })
+
+      if (crudify.exposure.hooks['after']['create'].length > 0) {
+        next()
+      }
     },
 
     /** GET /:id - Return a given entity */
-    read: ({crudify}, res) => {
-      res.json(crudify[modelName])
+    read: (req, res, next) => {
+      res.json(req.crudify[modelName])
+      if (crudify.exposure.hooks['after']['read'].length > 0) {
+        next()
+      }
     },
 
     /** PUT /:id - Update a given entity */
-    update: ({ crudify, body }, res) => {
-      for (let key in body) {
+    update: (req, res, next) => {
+      const oldDoc = req.crudify[modelName]
+      for (let key in req.body) {
         if (key !== '_id') {
-          crudify[modelName][key] = body[key]
+          oldDoc[key] = req.body[key]
         }
       }
-      crudify[modelName].save(function (err) {
+      oldDoc.save(function (err, newDoc) {
         if (err) {
           return res.json(err)
         }
 
-        res.json(crudify[modelName])
+        res.json(newDoc)
       })
+
+      if (crudify.exposure.hooks['after']['update'].length > 0) {
+        next()
+      }
     },
 
     /** DELETE /:id - Delete a given entity */
-    delete: ({ params }, res) => {
+    delete: ({ params }, res, next) => {
       let condition = {}
       condition[identifyingKey] = params[identifyingKey]
 
@@ -171,6 +185,10 @@ crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
         }
         res.sendStatus(204)
       })
+
+      if (crudify.exposure.hooks['after']['delete'].length > 0) {
+        next()
+      }
     }
   }
 }

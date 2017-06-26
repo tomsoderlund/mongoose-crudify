@@ -1,6 +1,6 @@
 {
   "name": "mongoose-crudify",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Crudify mongoose model",
   "main": "index.js",
   "scripts": {
