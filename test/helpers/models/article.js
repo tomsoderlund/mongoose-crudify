@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 
 const articleSchema = mongoose.Schema({
+  oldId: Number,
   title: {
     type: String,
     required: true

@@ -12,7 +12,15 @@ function crudify (params) {
   }
 
   params.identifyingKey = params.identifyingKey || '_id'
-  params.loadModel = params.loadModel || true
+  if (params.loadModel === undefined) {
+    params.loadModel = true
+  }
+  if (params.storeResultInReq === undefined) {
+    params.storeResultInReq = true
+  }
+  if (params.endResponseInAction === undefined) {
+    params.endResponseInAction = true
+  }
   params.beforeActions = params.beforeActions || []
   params.afterActions = params.afterActions || []
 
@@ -21,7 +29,9 @@ function crudify (params) {
     _.defaults(params.actions,
                crudify.getDefaultActions(params.Model,
                                          params.identifyingKey,
-                                         params.selectFields))
+                                         params.selectFields,
+                                         params.storeResultInReq,
+                                         params.endResponseInAction))
 
   params.options = params.options || {}
   params.options = _.defaults(params.options, {
@@ -108,68 +118,124 @@ crudify.getLoadModel = function (Model, identifyingKey, selectFields) {
   }
 }
 
-crudify.getDefaultActions = (Model, identifyingKey, selectFields) => {
+crudify.getDefaultActions = (Model, identifyingKey, selectFields,
+                             storeResultInReq, endResponseInAction) => {
   let modelName = Model.modelName.toLowerCase()
-
   return {
     /** GET / - List all entities */
-    list: ({ params }, res) => {
-      let query = Model.find(params)
+    list: (req, res, next) => {
+      let query = Model.find(req.params)
       if (selectFields) {
         query.select(selectFields)
       }
 
       query.exec((err, docs) => {
-        if (err) {
-          return res.json(err)
+        if (endResponseInAction) {
+          if (err) {
+            return res.json(err)
+          }
+          res.json(docs)
         }
-        res.json(docs)
+        if (storeResultInReq) {
+          helpers.addObjectToReq(req, {
+            err: err,
+            result: docs
+          })
+        }
+        if (crudify.exposure.hooks['after']['list'].length > 0) {
+          next()
+        }
       })
     },
 
     /** POST / - Create a new entity */
-    create: ({ body }, res) => {
-      var newDoc = new Model()
-      Object.assign(newDoc, body)
+    create: (req, res, next) => {
+      let newDoc = new Model()
+      Object.assign(newDoc, req.body)
       newDoc.save(function (err) {
-        if (err) {
-          return res.json(err)
+        if (endResponseInAction) {
+          if (err) {
+            return res.json(err)
+          }
+          res.json(newDoc)
         }
-        res.json(newDoc)
+        if (storeResultInReq) {
+          helpers.addObjectToReq(req, {
+            err: err,
+            result: newDoc
+          })
+        }
+        if (crudify.exposure.hooks['after']['create'].length > 0) {
+          next()
+        }
       })
     },
 
     /** GET /:id - Return a given entity */
-    read: ({crudify}, res) => {
-      res.json(crudify[modelName])
+    read: (req, res, next) => {
+      if (endResponseInAction) {
+        res.json(req.crudify[modelName])
+      }
+      if (storeResultInReq) {
+        helpers.addObjectToReq(req, {
+          result: req.crudify[modelName]
+        })
+      }
+
+      if (crudify.exposure.hooks['after']['read'].length > 0) {
+        next()
+      }
     },
 
     /** PUT /:id - Update a given entity */
-    update: ({ crudify, body }, res) => {
-      for (let key in body) {
+    update: (req, res, next) => {
+      const oldDoc = req.crudify[modelName]
+      for (let key in req.body) {
         if (key !== '_id') {
-          crudify[modelName][key] = body[key]
+          oldDoc[key] = req.body[key]
         }
       }
-      crudify[modelName].save(function (err) {
-        if (err) {
-          return res.json(err)
-        }
 
-        res.json(crudify[modelName])
+      oldDoc.save(function (err, newDoc) {
+        if (endResponseInAction) {
+          if (err) {
+            return res.json(err)
+          }
+
+          res.json(newDoc)
+        }
+        if (storeResultInReq) {
+          helpers.addObjectToReq(req, {
+            err: err,
+            result: newDoc
+          })
+        }
+        if (crudify.exposure.hooks['after']['update'].length > 0) {
+          next()
+        }
       })
     },
 
     /** DELETE /:id - Delete a given entity */
-    delete: ({ params }, res) => {
+    delete: (req, res, next) => {
       let condition = {}
-      condition[identifyingKey] = params[identifyingKey]
+      condition[identifyingKey] = req.params[identifyingKey]
 
       Model.remove(condition, function (err) {
-        if (err) {
-          return res.json(err)
+        if (endResponseInAction) {
+          if (err) {
+            return res.json(err)
+          }
+          res.sendStatus(204)
         }
-        res.sendStatus(204)
+        if (storeResultInReq) {
+          helpers.addObjectToReq(req, {
+            err: err
+          })
+        }
+        if (crudify.exposure.hooks['after']['delete'].length > 0) {
+          next()
+        }
       })
     }
   }
