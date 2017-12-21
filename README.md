@@ -45,8 +45,9 @@ app.use('/articles', mongooseCrudify({
   router: existingRouter
 
   // load model on update and read actions, defaults to true
-  // store the found model instance in req, eg: req.crudify.article
+  // store the found model instance in req, e.g: req.crudify.article
   // if changed to false, you must override the update and read middlewares
+  // and manually set the properties {err, result, [article] (model specific)} on req.crudify
   loadModel: true,
   beforeActions: [
     {
