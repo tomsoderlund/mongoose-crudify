@@ -109,6 +109,7 @@ crudify.getLoadModel = function (Model, identifyingKey, selectFields) {
       if (!doc) {
         const notFoundErr = new Error(`Could not find document with ${identifyingKey}: '${req.params[identifyingKey]}'`)
         notFoundErr.status = 404
+        notFoundErr.request = { method: req.method, path: req.originalUrl }
         next(notFoundErr)
       }
       if (doc) {
