@@ -106,7 +106,11 @@ crudify.getLoadModel = function (Model, identifyingKey, selectFields) {
 
     query.exec((err, doc) => {
       if (err) next(err)
-      if (!doc) next(new Error(`Could not find document with ${identifyingKey}: '${req.params[identifyingKey]}'`))
+      if (!doc) {
+        const notFoundErr = new Error(`Could not find document with ${identifyingKey}: '${req.params[identifyingKey]}'`)
+        notFoundErr.status = 404
+        next(notFoundErr)
+      }
       if (doc) {
         req.crudify = {
           [Model.modelName.toLowerCase()]: doc
